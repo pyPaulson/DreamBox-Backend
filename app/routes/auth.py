@@ -58,11 +58,13 @@ def login(user_data: LoginRequest, db: db_dependency):
     token = create_access_token({"user_id": str(user.id)})
 
     return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user_id": str(user.id),
+    "access_token": token,
+    "token_type": "bearer",
+    "user": {
+        "id": str(user.id),
         "first_name": user.first_name
     }
+}
 
 
 @router.get("/me")
