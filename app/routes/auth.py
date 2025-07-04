@@ -1,7 +1,7 @@
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, get_db
 from app.core.jwt import create_access_token
 from app.dependencies.auth import get_current_user
 from app.schemas.user import LoginRequest, UserCreate
@@ -10,24 +10,22 @@ from app.core.security import hash_password, verify_password
 
 router = APIRouter()
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# def get_db():
+#     db = SessionLocal()
+#     try:
+#         yield db
+#     finally:
+#         db.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
 @router.post("/register")
 def register(user_data: UserCreate, db: db_dependency):
-    existing_user = db.query(User).filter(
-        (User.email == user_data.email) | 
-        (User.phone_number == user_data.phone_number)
-    ).first()
-
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists")
+    if db.query(User).filter(User.email == user_data.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    
+    if db.query(User).filter(User.phone_number == user_data.phone_number).first():
+        raise HTTPException(status_code=400, detail="Phone number already registered")
 
     new_user = User(
         first_name=user_data.first_name,

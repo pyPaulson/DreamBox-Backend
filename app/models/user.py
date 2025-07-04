@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Boolean, DateTime, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 from datetime import datetime, timezone
+from sqlalchemy import Date
 from app.core.database import Base
 import enum 
 
@@ -18,7 +19,7 @@ class User(Base):
        first_name = Column(String, nullable=False)
        last_name = Column(String, nullable=False)
        gender = Column(SQLEnum(Gender), nullable=False)
-       date_of_birth = Column(DateTime, nullable=False)
+       date_of_birth = Column(Date, nullable=False)
        phone_number = Column(String, unique=True, nullable=False)
        email = Column(String, unique=True, nullable=False)
        hashed_password = Column(String, nullable=False)
