@@ -23,5 +23,8 @@ class User(Base):
        phone_number = Column(String, unique=True, nullable=False)
        email = Column(String, unique=True, nullable=False)
        hashed_password = Column(String, nullable=False)
+       is_phone_verified = Column(Boolean, default=False)
+       email_verification_code = Column(String, nullable=True)
+       email_code_expiry = Column(DateTime, nullable=True)
        is_verified = Column(Boolean, default=False)
        created_at = Column(DateTime, default=datetime.now(timezone.utc)) 

@@ -34,3 +34,8 @@ class UserCreate(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class EmailVerificationInput(BaseModel):
+    email: EmailStr
+    code: str
