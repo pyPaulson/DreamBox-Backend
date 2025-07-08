@@ -1,4 +1,58 @@
-.env*
-.env.local
-.env.*.local
-*.env
+# ⛔ Python Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ⛔ Environment
+env/
+venv/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# ⛔ Editor Stuff
+.vscode/
+.idea/
+*.swp
+
+# ⛔ OS Stuff
+.DS_Store
+Thumbs.db
+
+# ⛔ Logs
+*.log
+
+# ⛔ Database / Cache / Artifacts
+*.sqlite3
+*.db
+*.pkl
+
+# ⛔ Env Secrets
+.env
+.env.*
+
+# ⛔ Test Output
+htmlcov/
+.coverage
+.tox/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+.cache
+
+# ⛔ Build / Dist
+build/
+dist/
+*.egg-info/
+.eggs/
+*.whl
+
+# ⛔ Jupyter
+.ipynb_checkpoints/
+
+# ⛔ mypy / typing cache
+.mypy_cache/
+.dmypy.json
+.pyre/
