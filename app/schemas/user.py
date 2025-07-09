@@ -39,3 +39,6 @@ class LoginRequest(BaseModel):
 class EmailVerificationInput(BaseModel):
     email: EmailStr
     code: str
+
+class ResendCodeInput(BaseModel):
+    email: EmailStr

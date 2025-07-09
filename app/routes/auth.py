@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, get_db
 from app.core.jwt import create_access_token
 from app.dependencies.auth import get_current_user
-from app.schemas.user import EmailVerificationInput, LoginRequest, UserCreate
+from app.schemas.user import EmailVerificationInput, LoginRequest, ResendCodeInput, UserCreate
 from app.models.user import User
 from app.core.security import hash_password, verify_password
 import os
@@ -31,8 +31,9 @@ router = APIRouter()
 #         db.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
+
 @router.post("/register")
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: UserCreate, db: db_dependency):
    
     if db.query(User).filter(User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -53,8 +54,8 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     )
 
  
-    code = ''.join(str(random.randint(0, 9)) for _ in range(6))  # e.g. "123456"
-    expiry = datetime.now() + timedelta(minutes=10)  # expires in 10 mins
+    code = ''.join(str(random.randint(0, 9)) for _ in range(6)) 
+    expiry = datetime.now() + timedelta(minutes=10)  
 
     new_user.email_verification_code = code
     new_user.email_code_expiry = expiry
@@ -78,7 +79,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """)
 
     try:
-        with smtplib.SMTP(email_host, email_port) as smtp:  # Or use smtp.gmail.com
+        with smtplib.SMTP(email_host, email_port) as smtp:  
             smtp.starttls()
             smtp.login(email_user, email_pass)
             smtp.send_message(msg)
@@ -115,13 +116,53 @@ def verify_email(
     if data.code != user.email_verification_code:
         raise HTTPException(status_code=400, detail="Invalid verification code")
 
-    # Step 2: Mark user as verified
     user.is_verified = True
     user.email_verification_code = None
     user.email_code_expiry = None
     db.commit()
 
-    return {"message": "Email verified successfully ✅. You can now log in."}
+    return {"message": "Email verified successfully ✅."}
+
+
+@router.post("/resend-code")
+def resend_verification_code(data: ResendCodeInput, db: db_dependency):
+    user = db.query(User).filter(User.email == data.email).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="User is already verified")
+
+    code = ''.join(str(random.randint(0, 9)) for _ in range(6))
+    expiry = datetime.now() + timedelta(minutes=10)
+
+    user.email_verification_code = code
+    user.email_code_expiry = expiry
+    db.commit()
+
+    msg = EmailMessage()
+    msg["Subject"] = "DreamBox Email Verification Code (Resent)"
+    msg["From"] = os.getenv("EMAIL_USER")
+    msg["To"] = user.email
+    msg.set_content(
+        f"Hello {user.first_name},\n\n"
+        f"Your new verification code is: {code}\n"
+        f"This code expires in 10 minutes.\n\n"
+        f"Thanks,\nDreamBox Team"
+    )
+
+    try:
+        with smtplib.SMTP(os.getenv("EMAIL_HOST"), email_port) as smtp:
+            smtp.starttls()
+            smtp.login(os.getenv("EMAIL_HOST_USER"), os.getenv("EMAIL_HOST_PASSWORD"))
+            smtp.send_message(msg)
+    except Exception as e:
+        print("❌ Failed to resend email:", e)
+        raise HTTPException(status_code=500, detail="Could not send email")
+
+    return {"message": "Verification code resent successfully ✅"}
+
 
 
 @router.post("/login")
