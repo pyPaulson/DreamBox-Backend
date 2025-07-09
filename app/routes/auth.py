@@ -34,15 +34,12 @@ db_dependency = Annotated[Session, Depends(get_db)]
 
 @router.post("/register")
 def register(user_data: UserCreate, db: db_dependency):
-   
     if db.query(User).filter(User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     
-
     if db.query(User).filter(User.phone_number == user_data.phone_number).first():
         raise HTTPException(status_code=400, detail="Phone number already registered")
 
-  
     new_user = User(
         first_name=user_data.first_name,
         last_name=user_data.last_name,
@@ -53,23 +50,39 @@ def register(user_data: UserCreate, db: db_dependency):
         hashed_password=hash_password(user_data.password)
     )
 
- 
-    code = ''.join(str(random.randint(0, 9)) for _ in range(6)) 
-    expiry = datetime.now() + timedelta(minutes=10)  
-
-    new_user.email_verification_code = code
-    new_user.email_code_expiry = expiry
-
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
+    return {
+        "message": "User registered successfully. Proceed to email verification.",
+        "user_id": str(new_user.id)
+    }
+
+
+
+@router.post("/send-verification-code")
+def send_verification_code(email: str, db: db_dependency):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="User already verified")
+
+    code = ''.join(str(random.randint(0, 9)) for _ in range(6)) 
+    expiry = datetime.now() + timedelta(minutes=10)  
+
+    user.email_verification_code = code
+    user.email_code_expiry = expiry
+    db.commit()
+
     msg = EmailMessage()
     msg["Subject"] = "DreamBox Email Verification Code"
-    msg["From"] = "agyekumpaul07@gmail.com" 
-    msg["To"] = new_user.email
+    msg["From"] = "agyekumpaul07@gmail.com"
+    msg["To"] = user.email
     msg.set_content(f"""
-    Hello {new_user.first_name},
+    Hello {user.first_name},
 
     Your DreamBox 6-digit verification code is: {code}
     It will expire in 10 minutes.
@@ -83,14 +96,16 @@ def register(user_data: UserCreate, db: db_dependency):
             smtp.starttls()
             smtp.login(email_user, email_pass)
             smtp.send_message(msg)
-            print(f"Verification email sent to {new_user.email} ✅")
+            print(f"Verification email sent to {user.email} ✅")
     except Exception as e:
         print("Failed to send email ❌", str(e))
+        raise HTTPException(status_code=500, detail="Failed to send verification email")
 
     return {
-        "message": "User registered successfully. A verification code has been sent to your email.",
-        "user_id": str(new_user.id)
+        "message": "Verification code sent successfully"
     }
+
+
 
 
 @router.post("/verify-email")
