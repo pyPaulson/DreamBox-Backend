@@ -28,3 +28,4 @@ class User(Base):
        email_code_expiry = Column(DateTime, nullable=True)
        is_verified = Column(Boolean, default=False)
        created_at = Column(DateTime, default=datetime.now(timezone.utc)) 
+       pin = Column(String, nullable=True)

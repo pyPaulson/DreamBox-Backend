@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, get_db
 from app.core.jwt import create_access_token
 from app.dependencies.auth import get_current_user
-from app.schemas.user import EmailVerificationInput, LoginRequest, ResendCodeInput, UserCreate
+from app.schemas.user import EmailVerificationInput, LoginRequest, ResendCodeInput, SetPinInput, UserCreate
 from app.models.user import User
-from app.core.security import hash_password, verify_password
+from app.core.security import hash_password, hash_pin, verify_password, verify_pin
 import os
 from dotenv import load_dotenv
 
@@ -56,7 +56,8 @@ def register(user_data: UserCreate, db: db_dependency):
 
     return {
         "message": "User registered successfully. Proceed to email verification.",
-        "user_id": str(new_user.id)
+        "user_id": str(new_user.id),
+        "first_name": new_user.first_name,
     }
 
 
@@ -194,11 +195,36 @@ def login(user_data: LoginRequest, db: db_dependency):
     return {
     "access_token": token,
     "token_type": "bearer",
-    "user": {
-        "id": str(user.id),
-        "first_name": user.first_name
-    }
+    "first_name": user.first_name,
 }
+
+@router.post("/set-pin")
+def set_user_pin(data: SetPinInput, db: db_dependency):
+    user = db.query(User).filter(User.email == data.email).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.pin:
+        raise HTTPException(status_code=400, detail="PIN already set")
+
+    user.pin = hash_password(data.pin)
+    db.commit()
+
+    return {"message": "PIN set successfully"}
+
+
+@router.post("/verify-pin")
+def verify_user_pin(data: SetPinInput, db: db_dependency, current_user: User = Depends(get_current_user)):
+    if not current_user.transaction_pin:
+        raise HTTPException(status_code=400, detail="No PIN set.")
+
+    if not verify_pin(data.pin, current_user.transaction_pin):
+        raise HTTPException(status_code=401, detail="Incorrect PIN")
+
+    return {"message": "PIN verified successfully."}
+
+
 
 
 @router.get("/me")
@@ -210,4 +236,5 @@ def get_me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "phone_number": current_user.phone_number,
     }
+
 

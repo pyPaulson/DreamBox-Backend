@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, constr, field_validator
 from datetime import date
 from typing import Literal 
 from pydantic_core.core_schema import ValidationInfo 
@@ -18,7 +18,7 @@ class UserCreate(BaseModel):
     @field_validator("confirm_password")
     @classmethod
     def passwords_match(cls, confirm_password: str, info: ValidationInfo):
-        password = info.data.get("password")  # ✅ this is correct now
+        password = info.data.get("password")  
         if password and confirm_password != password:
             raise ValueError("Passwords do not match")
         return confirm_password
@@ -42,3 +42,7 @@ class EmailVerificationInput(BaseModel):
 
 class ResendCodeInput(BaseModel):
     email: EmailStr
+
+class SetPinInput(BaseModel):
+    email: str
+    pin: constr(min_length=4, max_length=4, pattern=r"^[0-9]{4}$") # type: ignore
