@@ -1,9 +1,11 @@
 from sqlalchemy import Column, String, Boolean, DateTime, Enum as SQLEnum
+from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
 from datetime import datetime, timezone
 from sqlalchemy import Date
 from app.core.database import Base
+from app.models.goals import SafeLockAccount, MyGoalAccount
 import enum 
 
 class Gender(str, enum.Enum):
@@ -29,3 +31,7 @@ class User(Base):
        is_verified = Column(Boolean, default=False)
        created_at = Column(DateTime, default=datetime.now(timezone.utc)) 
        pin = Column(String, nullable=True)
+
+
+       safelocks = relationship("SafeLockAccount", back_populates="user")
+       mygoals = relationship("MyGoalAccount", back_populates="user")

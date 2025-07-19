@@ -21,7 +21,7 @@ email_port = int(os.getenv("EMAIL_PORT"))
 email_user = os.getenv("EMAIL_HOST_USER")            
 email_pass = os.getenv("EMAIL_HOST_PASSWORD") 
 
-router = APIRouter()
+router = APIRouter(tags=["Authentication"])
 
 # def get_db():
 #     db = SessionLocal()
@@ -56,6 +56,7 @@ def register(user_data: UserCreate, db: db_dependency):
 
     return {
         "message": "User registered successfully. Proceed to email verification.",
+         "access_token": "xxx.jwt.token.here",
         "user_id": str(new_user.id),
         "first_name": new_user.first_name,
     }
