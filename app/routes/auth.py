@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, get_db
 from app.core.jwt import create_access_token
 from app.dependencies.auth import get_current_user
-from app.schemas.user import EmailVerificationInput, LoginRequest, ResendCodeInput, SetPinInput, UserCreate
+from app.schemas.user import EmailVerificationInput, LoginRequest, ResendCodeInput, SetPinInput, UserCreate, UserOut
 from app.models.user import User
 from app.core.security import hash_password, hash_pin, verify_password, verify_pin
 import os
@@ -159,12 +159,12 @@ def resend_verification_code(data: ResendCodeInput, db: db_dependency):
     db.commit()
 
     msg = EmailMessage()
-    msg["Subject"] = "DreamBox Email Verification Code (Resent)"
+    msg["Subject"] = "DreamBox Email Verification Code"
     msg["From"] = os.getenv("EMAIL_USER")
     msg["To"] = user.email
     msg.set_content(
         f"Hello {user.first_name},\n\n"
-        f"Your new verification code is: {code}\n"
+        f"Your verification code is: {code}\n"
         f"This code expires in 10 minutes.\n\n"
         f"Thanks,\nDreamBox Team"
     )
@@ -228,7 +228,7 @@ def verify_user_pin(data: SetPinInput, db: db_dependency, current_user: User = D
 
 
 
-@router.get("/me")
+@router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return {
         "id": str(current_user.id),
@@ -236,6 +236,7 @@ def get_me(current_user: User = Depends(get_current_user)):
         "last_name": current_user.last_name,
         "email": current_user.email,
         "phone_number": current_user.phone_number,
+        "date_of_birth": current_user.date_of_birth,
     }
 
 

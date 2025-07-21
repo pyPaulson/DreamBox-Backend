@@ -1,6 +1,6 @@
 # schemas/safelock.py
 from uuid import UUID
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ValidationInfo, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -71,5 +71,5 @@ class MyGoalOut(BaseModel):
     created_at: datetime
 
     model_config = {
-        "from_attributes": True  # for Pydantic v2
+        "from_attributes": True  
     }

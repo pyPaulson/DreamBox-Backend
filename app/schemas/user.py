@@ -1,7 +1,9 @@
+import uuid
 from pydantic import BaseModel, EmailStr, Field, constr, field_validator
 from datetime import date
-from typing import Literal 
-from pydantic_core.core_schema import ValidationInfo 
+from typing import Literal, Optional 
+from pydantic_core.core_schema import ValidationInfo
+from sqlalchemy import UUID 
 
 
 class UserCreate(BaseModel):
@@ -30,7 +32,15 @@ class UserCreate(BaseModel):
             raise ValueError("You must agree to the terms and conditions")
         return value 
     
-
+class UserOut(BaseModel):
+    id: uuid.UUID
+    first_name: str
+    last_name: str
+    email: str
+    phone_number: Optional[str]
+    date_of_birth: date
+    class Config:
+        arbitrary_types_allowed = True
 class LoginRequest(BaseModel):
     email: str
     password: str
