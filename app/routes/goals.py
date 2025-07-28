@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models import user as user_model 
-from app.models.goals import MyGoalAccount
 from app.schemas import goals
 
 
@@ -54,13 +53,29 @@ def create_safelock(
     return new_safelock
 
 
+
+@router.get("/my-Goals", response_model=List[goals.MyGoalOut])
+def get_user_myGoals(
+    db: db_dependency,
+    current_user: user_model.User = Depends(get_current_user),
+):
+    myGoals = (
+        db.query(user_model.MyGoalAccount)
+        .filter(user_model.MyGoalAccount.user_id == current_user.id)
+        .all()
+    )
+    return myGoals
+
+
+
+
 @router.post("/create-myGoal", response_model=goals.MyGoalOut)
 def create_my_goal(
     goal_data: goals.MyGoalCreate,
     db: db_dependency,
     current_user: user_model.User = Depends(get_current_user)
 ):
-    new_goal = MyGoalAccount(
+    new_goal = user_model.MyGoalAccount(
         user_id=current_user.id,
         goal_name=goal_data.goal_name,
         target_amount=goal_data.target_amount,

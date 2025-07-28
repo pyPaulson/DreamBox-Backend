@@ -1,6 +1,5 @@
 from fastapi import FastAPI
-from app.routes import auth, goals 
-from app import models   
+from app.routes import auth, goals  
 from app.core.database import engine, Base 
 
 app = FastAPI()
