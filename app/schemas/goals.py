@@ -51,9 +51,7 @@ class SafeLockResponse(BaseModel):
         model_config = {
         "from_attributes": True  
     }
-
-
-        
+    
 
 class MyGoalCreate(BaseModel):
     goal_name: str
@@ -73,3 +71,25 @@ class MyGoalOut(BaseModel):
     model_config = {
         "from_attributes": True  
     }
+
+
+class EmergencyFundOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    balance: float
+
+    class Config:
+        from_attributes = True
+
+
+class FlexiAccountCreate(BaseModel):
+    pass 
+
+
+class FlexiAccountOut(BaseModel):
+    id: UUID
+    user_id: UUID
+    balance: float
+
+    class Config:
+        from_attributes = True

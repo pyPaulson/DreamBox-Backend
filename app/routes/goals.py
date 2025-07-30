@@ -1,11 +1,12 @@
 from datetime import datetime, timezone
 from typing import Annotated, List
 from uuid import uuid4
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models import user as user_model 
+from app.models.goals import EmergencyFund, FlexiAccount
 from app.schemas import goals
 
 
@@ -50,6 +51,17 @@ def create_safelock(
     db.commit()
     db.refresh(new_safelock)
 
+    if safelock_data.has_emergency_fund:
+        existing = db.query(EmergencyFund).filter_by(user_id=current_user.id).first()
+        if not existing:
+            new_emergency_fund = EmergencyFund(
+                id=uuid4(),
+                user_id=current_user.id,
+                balance=0.0
+            )
+            db.add(new_emergency_fund)
+            db.commit()
+
     return new_safelock
 
 
@@ -87,3 +99,48 @@ def create_my_goal(
     db.commit()
     db.refresh(new_goal)
     return new_goal
+
+
+@router.get("/emergency", response_model=goals.EmergencyFundOut)
+def get_emergency_fund(
+    db: db_dependency,
+    current_user: user_model.User = Depends(get_current_user)
+):
+    fund = db.query(EmergencyFund).filter_by(user_id=current_user.id).first()
+    if not fund:
+        raise HTTPException(status_code=404, detail="Emergency fund not found.")
+    return fund
+
+
+
+@router.get("/flexi", response_model=goals.FlexiAccountOut)
+def get_flexi_account(
+    db: db_dependency,
+    current_user: user_model.User = Depends(get_current_user)
+):
+    flexi = db.query(FlexiAccount).filter_by(user_id=current_user.id).first()
+    if not flexi:
+        raise HTTPException(status_code=404, detail="Flexi account not found.")
+    return flexi
+
+
+
+
+@router.post("/create-flexi", response_model=goals.FlexiAccountOut)
+def create_flexi_account(
+    db: db_dependency,
+    current_user: user_model.User = Depends(get_current_user)
+):
+    existing = db.query(FlexiAccount).filter_by(user_id=current_user.id).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Flexi account already exists.")
+
+    new_account = FlexiAccount(
+        id=uuid4(),
+        user_id=current_user.id,
+        balance=0.0
+    )
+    db.add(new_account)
+    db.commit()
+    db.refresh(new_account)
+    return new_account

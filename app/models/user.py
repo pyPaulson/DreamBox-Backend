@@ -5,6 +5,7 @@ from uuid import uuid4
 from datetime import datetime, timezone
 from sqlalchemy import Date
 from app.core.database import Base
+from app.models.goals import SafeLockAccount, MyGoalAccount
 import enum 
 
 class Gender(str, enum.Enum):
@@ -34,3 +35,5 @@ class User(Base):
 
        safelocks = relationship("SafeLockAccount", back_populates="user")
        mygoals = relationship("MyGoalAccount", back_populates="user")
+       emergency_fund = relationship("EmergencyFund", back_populates="user", uselist=False)
+       flexi_account = relationship("FlexiAccount", back_populates="user", uselist=False)

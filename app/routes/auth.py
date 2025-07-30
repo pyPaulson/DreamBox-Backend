@@ -3,7 +3,8 @@ import random
 import smtplib
 from email.message import EmailMessage
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.core.database import SessionLocal, get_db
 from app.core.jwt import create_access_token
@@ -226,6 +227,14 @@ def verify_user_pin(data: SetPinInput, db: db_dependency, current_user: User = D
     return {"message": "PIN verified successfully."}
 
 
+@router.post("/logout")
+def logout(current_user: dict = Depends(get_current_user)):
+    # Optional: you can clear or blacklist token here
+    return JSONResponse(
+        content={"message": "Logged out successfully."},
+        status_code=status.HTTP_200_OK
+    )
+
 
 
 @router.get("/me", response_model=UserOut)
@@ -238,5 +247,7 @@ def get_me(current_user: User = Depends(get_current_user)):
         "phone_number": current_user.phone_number,
         "date_of_birth": current_user.date_of_birth,
     }
+
+
 
 
