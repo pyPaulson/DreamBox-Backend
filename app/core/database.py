@@ -5,7 +5,7 @@ from sqlalchemy.orm import sessionmaker
 
 DATABASE_URL = "postgresql://postgres:Ug?10976491@localhost/DreamBox" 
 
-engine = create_engine(DATABASE_URL) # This line connects to the postgres database 
+engine = create_engine(DATABASE_URL)  
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) # Helps in talking to the database
 
