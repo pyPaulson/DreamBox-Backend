@@ -7,7 +7,7 @@ DATABASE_URL = "postgresql://postgres:Ug?10976491@localhost/DreamBox"
 
 engine = create_engine(DATABASE_URL)  
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) # Helps in talking to the database
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine) 
 
 Base = declarative_base() # The base class for defining database models.  
 
