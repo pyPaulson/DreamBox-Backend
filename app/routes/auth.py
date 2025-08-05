@@ -205,7 +205,7 @@ def set_user_pin(data: SetPinInput, db: db_dependency):
     user = db.query(User).filter(User.email == data.email).first()
     
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        user = User(email=data.email)
 
     if user.pin:
         raise HTTPException(status_code=400, detail="PIN already set")
@@ -229,7 +229,6 @@ def verify_user_pin(data: SetPinInput, db: db_dependency, current_user: User = D
 
 @router.post("/logout")
 def logout(current_user: dict = Depends(get_current_user)):
-    # Optional: you can clear or blacklist token here
     return JSONResponse(
         content={"message": "Logged out successfully."},
         status_code=status.HTTP_200_OK

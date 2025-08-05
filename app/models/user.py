@@ -37,3 +37,4 @@ class User(Base):
        mygoals = relationship("MyGoalAccount", back_populates="user")
        emergency_fund = relationship("EmergencyFund", back_populates="user", uselist=False)
        flexi_account = relationship("FlexiAccount", back_populates="user", uselist=False)
+       deposits = relationship("DepositTransaction", back_populates="user")
