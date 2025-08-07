@@ -52,11 +52,14 @@ def initialize_deposit(
         "Content-Type": "application/json"
     }
 
+    # Generate a unique reference for this transaction
+    reference = f"dep_{uuid4().hex[:12]}"
     callback_url = "http://your-app.com/payment/callback"  # update to your real callback URL
 
     payload = {
         "email": current_user.email,
         "amount": int(amount * 100),  # Convert to kobo
+        "reference": reference,
         "callback_url": callback_url,
         "metadata": {
             "account_type": account_type,
@@ -73,15 +76,23 @@ def initialize_deposit(
 
     paystack_data = response.json().get("data")
 
+    # ✅ CREATE PENDING TRANSACTION RECORD
+    deposit = DepositTransaction(
+        user_id=current_user.id,
+        amount=amount,
+        account_type=account_type,
+        goal_id=goal_id,
+        reference=reference,
+        is_successful=False
+    )
+    db.add(deposit)
+    db.commit()
+
     # ✅ Ensure we return the correct data to frontend
     return {
         "authorization_url": paystack_data["authorization_url"],
-        "reference": paystack_data["reference"]
+        "reference": reference
     }
-
-        
-
-    # Rest of your initialization code remains the same...
 
 @router.get("/verify-deposit")
 def verify_deposit(
@@ -96,7 +107,12 @@ def verify_deposit(
         raise HTTPException(status_code=404, detail="Transaction not found")
 
     if deposit.is_successful:
-        return {"message": "Transaction has already been verified and processed."}
+        return {
+            "message": "Transaction has already been verified and processed.",
+            "amount": deposit.amount,
+            "account_type": deposit.account_type,
+            "reference": deposit.reference
+        }
 
     # Step 2: Verify payment with Paystack
     headers = {
@@ -112,64 +128,75 @@ def verify_deposit(
     if data["status"] != "success":
         raise HTTPException(status_code=400, detail="Transaction not successful yet")
 
+    # Verify the amount matches (convert from kobo to naira/cedi)
+    expected_amount = int(deposit.amount * 100)
+    if data["amount"] != expected_amount:
+        raise HTTPException(status_code=400, detail="Transaction amount mismatch")
+
     # Step 3: Mark transaction as successful
     deposit.is_successful = True
 
-    # FIX 2: Update account balances based on account_type
-    if deposit.account_type == "safelock":
-        safelock = db.query(SafeLockAccount).filter_by(id=deposit.goal_id, user_id=current_user.id).first()
-        if not safelock:
-            raise HTTPException(status_code=404, detail="SafeLock goal not found")
+    # Step 4: Update account balances based on account_type
+    try:
+        if deposit.account_type == "safelock":
+            safelock = db.query(SafeLockAccount).filter_by(id=deposit.goal_id, user_id=current_user.id).first()
+            if not safelock:
+                raise HTTPException(status_code=404, detail="SafeLock goal not found")
 
-        # If emergency fund is enabled, split the amount
-        if safelock.has_emergency_fund and safelock.emergency_fund_percentage:
-            emergency_share = (safelock.emergency_fund_percentage / 100.0) * deposit.amount
-            safelock_share = deposit.amount - emergency_share
+            # If emergency fund is enabled, split the amount
+            if safelock.has_emergency_fund and safelock.emergency_fund_percentage:
+                emergency_share = (safelock.emergency_fund_percentage / 100.0) * deposit.amount
+                safelock_share = deposit.amount - emergency_share
 
-            safelock.current_amount += safelock_share
+                safelock.current_amount += safelock_share
 
-            # Update EmergencyFund balance
+                # Update EmergencyFund balance
+                emergency = db.query(EmergencyFund).filter_by(user_id=current_user.id).first()
+                if not emergency:
+                    emergency = EmergencyFund(
+                        user_id=current_user.id, 
+                        balance=emergency_share, 
+                        percentage=safelock.emergency_fund_percentage
+                    )
+                    db.add(emergency)
+                else:
+                    emergency.balance += emergency_share
+            else:
+                # No emergency split
+                safelock.current_amount += deposit.amount
+
+        elif deposit.account_type == "emergency":
             emergency = db.query(EmergencyFund).filter_by(user_id=current_user.id).first()
             if not emergency:
-                emergency = EmergencyFund(
-                    user_id=current_user.id, 
-                    balance=emergency_share, 
-                    percentage=safelock.emergency_fund_percentage
-                )
+                # Create emergency fund if it doesn't exist
+                emergency = EmergencyFund(user_id=current_user.id, balance=deposit.amount)
                 db.add(emergency)
             else:
-                emergency.balance += emergency_share
-        else:
-            # No emergency split
-            safelock.current_amount += deposit.amount
+                emergency.balance += deposit.amount
 
-    elif deposit.account_type == "emergency":
-        # FIX 3: Handle emergency fund deposits properly
-        emergency = db.query(EmergencyFund).filter_by(user_id=current_user.id).first()
-        if not emergency:
-            # Create emergency fund if it doesn't exist
-            emergency = EmergencyFund(user_id=current_user.id, balance=deposit.amount)
-            db.add(emergency)
-        else:
-            emergency.balance += deposit.amount
+        elif deposit.account_type == "flexi":
+            flexi = db.query(FlexiAccount).filter_by(user_id=current_user.id).first()
+            if not flexi:
+                # Create flexi account if it doesn't exist
+                flexi = FlexiAccount(user_id=current_user.id, balance=deposit.amount)
+                db.add(flexi)
+            else:
+                flexi.balance += deposit.amount
 
-    elif deposit.account_type == "flexi":
-        flexi = db.query(FlexiAccount).filter_by(user_id=current_user.id).first()
-        if not flexi:
-            # FIX 4: Create flexi account if it doesn't exist
-            flexi = FlexiAccount(user_id=current_user.id, balance=deposit.amount)
-            db.add(flexi)
         else:
-            flexi.balance += deposit.amount
+            raise HTTPException(status_code=400, detail="Invalid account type")
+        
+        # Commit all changes
+        db.commit()
 
-    else:
-        raise HTTPException(status_code=400, detail="Invalid account type")
-    
-    db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to update account balance: {str(e)}")
 
     return {
         "message": "Deposit verified and balance updated successfully",
         "amount": deposit.amount,
         "account_type": deposit.account_type,
-        "reference": deposit.reference
+        "reference": deposit.reference,
+        "success": True
     }
