@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.orm import Session
 from uuid import uuid4
 import os, requests
@@ -8,28 +8,35 @@ from app.models.goals import SafeLockAccount
 from app.models.transactions import DepositTransaction
 from app.dependencies.auth import get_current_user
 from app.models.goals import SafeLockAccount, MyGoalAccount, EmergencyFund, FlexiAccount
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
+class DepositRequest(BaseModel):
+    amount: float
+    account_type: str
+    goal_id: Optional[str] = None
 
 @router.post("/init-deposit", status_code=201)
 def initialize_deposit(
-    amount: float,
-    account_type: str,
-    goal_id: str = None,
+    deposit_request: DepositRequest,
     db: Session = Depends(get_db),
     current_user: user_model.User = Depends(get_current_user),
 ):
-    account_type = account_type.lower()
-    valid_account_types = ["flexi", "emergency", "safelock"]
+    amount = deposit_request.amount
+    account_type = deposit_request.account_type.lower()
+    goal_id = deposit_request.goal_id
+    
+    valid_account_types = ["flexi", "emergency", "safelock", "mygoal"]
     if account_type not in valid_account_types:
         raise HTTPException(
             status_code=400,
-            detail="Invalid account type. Must be 'flexi', 'emergency', or 'safelock'."
+            detail="Invalid account type. Must be 'flexi', 'emergency', 'mygoal' or 'safelock'."
         )
 
     # Validate goal_id if needed
-    if account_type in ["safelock", "emergency"]:
+    if account_type in ["safelock", "mygoal"]:
         if not goal_id:
             raise HTTPException(status_code=400, detail="goal_id is required for this account type")
 
@@ -37,10 +44,22 @@ def initialize_deposit(
             goal = db.query(SafeLockAccount).filter_by(id=goal_id, user_id=current_user.id).first()
             if not goal:
                 raise HTTPException(status_code=404, detail="SafeLock goal not found")
-        elif account_type == "emergency":
-            goal = db.query(SafeLockAccount).filter_by(id=goal_id, user_id=current_user.id).first()
-            if not goal or not goal.has_emergency_fund:
-                raise HTTPException(status_code=400, detail="This goal does not have emergency fund enabled.")
+            
+            if goal.current_amount + amount > goal.target_amount:
+                raise HTTPException(status_code=400, detail="Deposit exceeds target amount for SafeLock")
+            
+        elif account_type == "mygoal":
+            goal = db.query(MyGoalAccount).filter_by(id=goal_id, user_id=current_user.id).first()
+            if not goal:
+                raise HTTPException(status_code=404, detail="MyGoal goal not found")
+
+            if goal.current_amount + amount > goal.target_amount:
+                raise HTTPException(status_code=400, detail="Deposit exceeds target amount for MyGoal")
+
+    elif account_type == "emergency":
+        # For emergency, we don't need a specific goal_id
+        # We'll use the user's emergency fund
+        pass
 
     # ✅ PAYSTACK SETUP
     paystack_secret_key = os.getenv("PAYSTACK_SECRET_KEY")
@@ -91,12 +110,13 @@ def initialize_deposit(
     # ✅ Ensure we return the correct data to frontend
     return {
         "authorization_url": paystack_data["authorization_url"],
-        "reference": reference
+        "reference": reference,
+        "message": "Payment initialized successfully"
     }
 
 @router.get("/verify-deposit")
 def verify_deposit(
-    reference: str = Query(..., description="Paystack transaction reference"),
+    reference: str,
     db: Session = Depends(get_db),
     current_user: user_model.User = Depends(get_current_user),
 ):
@@ -111,7 +131,8 @@ def verify_deposit(
             "message": "Transaction has already been verified and processed.",
             "amount": deposit.amount,
             "account_type": deposit.account_type,
-            "reference": deposit.reference
+            "reference": deposit.reference,
+            "success": True
         }
 
     # Step 2: Verify payment with Paystack
@@ -142,6 +163,9 @@ def verify_deposit(
             safelock = db.query(SafeLockAccount).filter_by(id=deposit.goal_id, user_id=current_user.id).first()
             if not safelock:
                 raise HTTPException(status_code=404, detail="SafeLock goal not found")
+            
+            if safelock.current_amount + deposit.amount > safelock.target_amount:
+                raise HTTPException(status_code=400, detail="Deposit exceeds target amount for SafeLock goal")
 
             # If emergency fund is enabled, split the amount
             if safelock.has_emergency_fund and safelock.emergency_fund_percentage:
@@ -155,8 +179,7 @@ def verify_deposit(
                 if not emergency:
                     emergency = EmergencyFund(
                         user_id=current_user.id, 
-                        balance=emergency_share, 
-                        percentage=safelock.emergency_fund_percentage
+                        balance=emergency_share
                     )
                     db.add(emergency)
                 else:
@@ -182,6 +205,16 @@ def verify_deposit(
                 db.add(flexi)
             else:
                 flexi.balance += deposit.amount
+
+        elif deposit.account_type == "mygoal":
+            my_goal = db.query(MyGoalAccount).filter_by(id=deposit.goal_id, user_id=current_user.id).first()
+            if not my_goal:
+                raise HTTPException(status_code=404, detail="MyGoal not found")
+            
+            if my_goal.current_amount + deposit.amount > my_goal.target_amount:
+                raise HTTPException(status_code=400, detail="Deposit exceeds target amount for MyGoal")
+            
+            my_goal.current_amount += deposit.amount
 
         else:
             raise HTTPException(status_code=400, detail="Invalid account type")

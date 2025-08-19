@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, DateTime, Enum as SQLEnum
+from sqlalchemy import Column, String, Boolean, DateTime, Enum as SQLEnum, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from uuid import uuid4
@@ -31,6 +31,7 @@ class User(Base):
        is_verified = Column(Boolean, default=False)
        created_at = Column(DateTime, default=datetime.now(timezone.utc)) 
        pin = Column(String, nullable=True)
+       profile_picture_url = Column(Text, nullable=True)
 
 
        safelocks = relationship("SafeLockAccount", back_populates="user")

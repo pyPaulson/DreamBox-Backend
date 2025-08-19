@@ -39,6 +39,7 @@ class UserOut(BaseModel):
     email: str
     phone_number: Optional[str]
     date_of_birth: date
+    profile_picture_url: Optional[str]
     class Config:
         arbitrary_types_allowed = True
 class LoginRequest(BaseModel):

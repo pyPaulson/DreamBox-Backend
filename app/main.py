@@ -1,11 +1,36 @@
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+import os
 from app.routes import auth, goals, payments
-from app.core.database import engine, Base 
+# Create FastAPI app
+app = FastAPI(title="DreamBox API", version="1.0.0")
 
-app = FastAPI()
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure this properly for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-Base.metadata.create_all(bind=engine)
+# Create static directories if they don't exist
+os.makedirs("static/profile_pics", exist_ok=True)
+
+# Mount static files - This is crucial for serving profile pictures
+app.mount("/static", StaticFiles(directory="uploads"), name="static")
+
+# Include your routers
 
 app.include_router(auth.router)
 app.include_router(goals.router)
 app.include_router(payments.router) 
+
+@app.get("/")
+def read_root():
+    return {"message": "DreamBox API is running"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
