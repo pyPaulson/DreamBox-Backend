@@ -39,3 +39,5 @@ class User(Base):
        emergency_fund = relationship("EmergencyFund", back_populates="user", uselist=False)
        flexi_account = relationship("FlexiAccount", back_populates="user", uselist=False)
        deposits = relationship("DepositTransaction", back_populates="user")
+       transactions = relationship("Transaction", back_populates="user")
+       withdrawals = relationship("WithdrawalTransaction", back_populates="user")

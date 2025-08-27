@@ -4,12 +4,16 @@ from uuid import uuid4
 import os, requests
 from app.core.database import get_db
 from app.models import user as user_model
-from app.models.goals import SafeLockAccount
+from app.models.goals import SafeLockAccount, MyGoalAccount, EmergencyFund, FlexiAccount
 from app.models.transactions import DepositTransaction
 from app.dependencies.auth import get_current_user
-from app.models.goals import SafeLockAccount, MyGoalAccount, EmergencyFund, FlexiAccount
+from app.utils.transactions import TransactionService
+from app.models.transactions import TransactionType, AccountType
 from pydantic import BaseModel
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
@@ -36,6 +40,7 @@ def initialize_deposit(
         )
 
     # Validate goal_id if needed
+    goal_name = None
     if account_type in ["safelock", "mygoal"]:
         if not goal_id:
             raise HTTPException(status_code=400, detail="goal_id is required for this account type")
@@ -47,6 +52,7 @@ def initialize_deposit(
             
             if goal.current_amount + amount > goal.target_amount:
                 raise HTTPException(status_code=400, detail="Deposit exceeds target amount for SafeLock")
+            goal_name = goal.goal_name
             
         elif account_type == "mygoal":
             goal = db.query(MyGoalAccount).filter_by(id=goal_id, user_id=current_user.id).first()
@@ -55,11 +61,7 @@ def initialize_deposit(
 
             if goal.current_amount + amount > goal.target_amount:
                 raise HTTPException(status_code=400, detail="Deposit exceeds target amount for MyGoal")
-
-    elif account_type == "emergency":
-        # For emergency, we don't need a specific goal_id
-        # We'll use the user's emergency fund
-        pass
+            goal_name = goal.goal_name
 
     # ✅ PAYSTACK SETUP
     paystack_secret_key = os.getenv("PAYSTACK_SECRET_KEY")
@@ -83,7 +85,8 @@ def initialize_deposit(
         "metadata": {
             "account_type": account_type,
             "goal_id": goal_id,
-            "user_id": str(current_user.id)
+            "user_id": str(current_user.id),
+            "goal_name": goal_name
         }
     }
 
@@ -95,17 +98,37 @@ def initialize_deposit(
 
     paystack_data = response.json().get("data")
 
-    # ✅ CREATE PENDING TRANSACTION RECORD
-    deposit = DepositTransaction(
-        user_id=current_user.id,
-        amount=amount,
-        account_type=account_type,
-        goal_id=goal_id,
-        reference=reference,
-        is_successful=False
-    )
-    db.add(deposit)
-    db.commit()
+    try:
+        # ✅ CREATE TRANSACTION RECORD using the new Transaction service
+        transaction = TransactionService.create_transaction(
+            db=db,
+            user_id=str(current_user.id),
+            transaction_type=TransactionType.DEPOSIT,
+            account_type=AccountType(account_type),
+            amount=amount,
+            goal_id=goal_id,
+            reference=reference,
+            description=f"Deposit to {goal_name or account_type} account"
+        )
+        
+        # Also create the old DepositTransaction for backward compatibility
+        deposit = DepositTransaction(
+            user_id=current_user.id,
+            amount=amount,
+            account_type=account_type,
+            goal_id=goal_id,
+            reference=reference,
+            is_successful=False
+        )
+        db.add(deposit)
+        db.commit()
+        
+        logger.info(f"Created transaction record {transaction.id} for user {current_user.id}")
+
+    except Exception as e:
+        logger.error(f"Failed to create transaction record: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to initialize transaction")
 
     # ✅ Ensure we return the correct data to frontend
     return {
@@ -158,6 +181,9 @@ def verify_deposit(
     deposit.is_successful = True
 
     # Step 4: Update account balances based on account_type
+    emergency_fund_amount = 0.0
+    main_goal_amount = deposit.amount
+    
     try:
         if deposit.account_type == "safelock":
             safelock = db.query(SafeLockAccount).filter_by(id=deposit.goal_id, user_id=current_user.id).first()
@@ -169,21 +195,21 @@ def verify_deposit(
 
             # If emergency fund is enabled, split the amount
             if safelock.has_emergency_fund and safelock.emergency_fund_percentage:
-                emergency_share = (safelock.emergency_fund_percentage / 100.0) * deposit.amount
-                safelock_share = deposit.amount - emergency_share
+                emergency_fund_amount = (safelock.emergency_fund_percentage / 100.0) * deposit.amount
+                main_goal_amount = deposit.amount - emergency_fund_amount
 
-                safelock.current_amount += safelock_share
+                safelock.current_amount += main_goal_amount
 
                 # Update EmergencyFund balance
                 emergency = db.query(EmergencyFund).filter_by(user_id=current_user.id).first()
                 if not emergency:
                     emergency = EmergencyFund(
                         user_id=current_user.id, 
-                        balance=emergency_share
+                        balance=emergency_fund_amount
                     )
                     db.add(emergency)
                 else:
-                    emergency.balance += emergency_share
+                    emergency.balance += emergency_fund_amount
             else:
                 # No emergency split
                 safelock.current_amount += deposit.amount
@@ -219,17 +245,33 @@ def verify_deposit(
         else:
             raise HTTPException(status_code=400, detail="Invalid account type")
         
+        # Update the transaction record to completed
+        from app.models.transactions import Transaction, TransactionStatus
+        transaction = db.query(Transaction).filter_by(reference=reference, user_id=current_user.id).first()
+        if transaction:
+            transaction = TransactionService.complete_transaction(
+                db=db,
+                transaction_id=str(transaction.id),
+                emergency_fund_amount=emergency_fund_amount,
+                main_goal_amount=main_goal_amount
+            )
+        
         # Commit all changes
         db.commit()
+        
+        logger.info(f"Successfully processed deposit {reference} for user {current_user.id}")
 
     except Exception as e:
         db.rollback()
+        logger.error(f"Failed to update account balance: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to update account balance: {str(e)}")
 
     return {
         "message": "Deposit verified and balance updated successfully",
         "amount": deposit.amount,
         "account_type": deposit.account_type,
+        "emergency_fund_amount": emergency_fund_amount,
+        "main_goal_amount": main_goal_amount,
         "reference": deposit.reference,
         "success": True
     }

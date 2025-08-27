@@ -48,9 +48,7 @@ class SafeLockResponse(BaseModel):
     created_at: datetime
 
     class Config:
-        model_config = {
-        "from_attributes": True  
-    }
+        from_attributes = True
     
 
 class MyGoalCreate(BaseModel):
@@ -68,9 +66,8 @@ class MyGoalOut(BaseModel):
     target_date: datetime
     created_at: datetime
 
-    model_config = {
-        "from_attributes": True  
-    }
+    class Config:
+        from_attributes = True
 
 
 class EmergencyFundOut(BaseModel):

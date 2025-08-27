@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models import user as user_model 
-from app.models.goals import EmergencyFund, FlexiAccount
+from app.models.goals import EmergencyFund, FlexiAccount, SafeLockAccount, MyGoalAccount
 from app.schemas import goals
 
 
@@ -21,8 +21,8 @@ def get_user_safelocks(
     current_user: user_model.User = Depends(get_current_user),
 ):
     safelocks = (
-        db.query(user_model.SafeLockAccount)
-        .filter(user_model.SafeLockAccount.user_id == current_user.id)
+        db.query(SafeLockAccount)
+        .filter(SafeLockAccount.user_id == current_user.id)
         .all()
     )
     return safelocks
@@ -35,7 +35,7 @@ def create_safelock(
     db: db_dependency,
     current_user: user_model.User = Depends(get_current_user),
 ):
-    new_safelock = user_model.SafeLockAccount(
+    new_safelock = SafeLockAccount(
         id=uuid4(),
         user_id=current_user.id,
         goal_name=safelock_data.goal_name,
@@ -72,8 +72,8 @@ def get_user_myGoals(
     current_user: user_model.User = Depends(get_current_user),
 ):
     myGoals = (
-        db.query(user_model.MyGoalAccount)
-        .filter(user_model.MyGoalAccount.user_id == current_user.id)
+        db.query(MyGoalAccount)
+        .filter(MyGoalAccount.user_id == current_user.id)
         .all()
     )
     return myGoals
@@ -87,7 +87,7 @@ def create_my_goal(
     db: db_dependency,
     current_user: user_model.User = Depends(get_current_user)
 ):
-    new_goal = user_model.MyGoalAccount(
+    new_goal = MyGoalAccount(
         user_id=current_user.id,
         goal_name=goal_data.goal_name,
         target_amount=goal_data.target_amount,

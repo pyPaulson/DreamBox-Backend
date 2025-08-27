@@ -1,14 +1,12 @@
 from fastapi import Depends, HTTPException
-# from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 from app.core.jwt import SECRET_KEY, ALGORITHM
 from app.models.user import User
 from app.core.database import get_db
-from fastapi.security import APIKeyHeader
 
-# oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-oauth2_scheme = APIKeyHeader(name="Authorization")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     credentials_error = HTTPException(
@@ -16,9 +14,6 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail="Invalid or expired token",
         headers={"WWW-Authenticate": "Bearer"}
     )
-
-    if token.startswith("Bearer "):
-        token = token[7:] 
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
