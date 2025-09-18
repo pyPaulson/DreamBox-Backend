@@ -41,3 +41,5 @@ class User(Base):
        deposits = relationship("DepositTransaction", back_populates="user")
        transactions = relationship("Transaction", back_populates="user")
        withdrawals = relationship("WithdrawalTransaction", back_populates="user")
+       wallets = relationship("Wallet", back_populates="user")
+       auto_save_settings = relationship("AutoSaveSetting", back_populates="user")

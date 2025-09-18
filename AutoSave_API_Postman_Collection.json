@@ -1,0 +1,325 @@
+{
+  "info": {
+    "name": "DreamBox Auto-Save API",
+    "description": "Complete API collection for auto-save feature testing",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    },
+    {
+      "key": "walletId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "goalId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Wallet Management",
+      "item": [
+        {
+          "name": "Get User Wallets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/",
+              "host": ["{{baseUrl}}"],
+              "path": ["wallets", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Wallet",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"MTN\",\n  \"phone_number\": \"0241234567\",\n  \"account_name\": \"John Doe\",\n  \"is_default\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wallets/",
+              "host": ["{{baseUrl}}"],
+              "path": ["wallets", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Wallet",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_name\": \"John Doe Updated\",\n  \"is_default\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wallets/{{walletId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["wallets", "{{walletId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set Default Wallet",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/{{walletId}}/set-default",
+              "host": ["{{baseUrl}}"],
+              "path": ["wallets", "{{walletId}}", "set-default"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Wallet",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/{{walletId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["wallets", "{{walletId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auto-Save Management",
+      "item": [
+        {
+          "name": "Create Auto-Save Setting",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{walletId}}\",\n  \"frequency\": \"weekly\",\n  \"time\": \"09:00\",\n  \"amount\": 50.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/goals/{{goalId}}/auto-save",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "goals", "{{goalId}}", "auto-save"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auto-Save Setting",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/goals/{{goalId}}/auto-save",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "goals", "{{goalId}}", "auto-save"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Auto-Save Setting",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"frequency\": \"monthly\",\n  \"time\": \"10:00\",\n  \"amount\": 100.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/goals/{{goalId}}/auto-save",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "goals", "{{goalId}}", "auto-save"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Auto-Save Setting",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/goals/{{goalId}}/auto-save",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "goals", "{{goalId}}", "auto-save"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auto-Save Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/transactions?limit=20&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "transactions"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Auto-Save Transactions by Goal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/transactions?goal_id={{goalId}}&limit=20&offset=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "transactions"],
+              "query": [
+                {
+                  "key": "goal_id",
+                  "value": "{{goalId}}"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Test Scenarios",
+      "item": [
+        {
+          "name": "Test Invalid Phone Number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"MTN\",\n  \"phone_number\": \"1234567890\",\n  \"account_name\": \"Test User\",\n  \"is_default\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wallets/",
+              "host": ["{{baseUrl}}"],
+              "path": ["wallets", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test Invalid Amount",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{walletId}}\",\n  \"frequency\": \"weekly\",\n  \"time\": \"09:00\",\n  \"amount\": 0.50\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/goals/{{goalId}}/auto-save",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "goals", "{{goalId}}", "auto-save"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Test Invalid Frequency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"wallet_id\": \"{{walletId}}\",\n  \"frequency\": \"yearly\",\n  \"time\": \"09:00\",\n  \"amount\": 50.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auto-save/goals/{{goalId}}/auto-save",
+              "host": ["{{baseUrl}}"],
+              "path": ["auto-save", "goals", "{{goalId}}", "auto-save"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

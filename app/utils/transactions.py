@@ -15,6 +15,12 @@ from app.schemas.transactions import (
 
 logger = logging.getLogger(__name__)
 
+
+def generate_transaction_reference() -> str:
+    """Generate a unique transaction reference"""
+    return f"AUTO_SAVE_{uuid4().hex[:12].upper()}"
+
+
 class TransactionService:
     
     @staticmethod

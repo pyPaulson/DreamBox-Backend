@@ -21,6 +21,7 @@ class SafeLockAccount(Base):
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="safelocks")
+    # Note: auto_save_settings relationship removed due to flexible goal_id
 
 
 
